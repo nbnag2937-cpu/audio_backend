@@ -1,0 +1,46 @@
+version: "3.9"
+
+# docker-compose nay chi dung cho MOI TRUONG LOCAL (chay Postgres + backend de dev/test).
+# Khi deploy that, ban se dung Railway (Postgres + Service) thay vi file nay.
+services:
+  db:
+    image: mysql:8.4
+    container_name: music_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: music_db
+      MYSQL_USER: music_user
+      MYSQL_PASSWORD: music_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - music_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "mysql://root:root@db:3306/music_db"
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    command: sh -c "npx prisma migrate deploy && npm run dev"
+
+volumes:
+  music_db_data:

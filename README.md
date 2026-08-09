@@ -343,3 +343,4 @@ Project bạn tải ở trên **đã được chỉnh sẵn cho MySQL** (schema,
 - Không dùng `any` ở bất kỳ đâu trong source code — mọi type đều được khai báo tường minh hoặc suy ra tự động từ Prisma/Zod.
 - Muốn đổi vai trò lưu trữ audio public/private hoàn toàn theo ý khác (ví dụ: giới hạn play count theo IP thay vì `deviceId`) thì sửa ở `modules/unlock` và `modules/public` — 2 module này độc lập, không ảnh hưởng phần CRUD của admin.
 # audio_backend
+# audio_backend

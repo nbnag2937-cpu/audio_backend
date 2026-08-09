@@ -90,11 +90,9 @@ model ListenEvent {
 }
 
 model UnlockLog {
-  id        String   @id @default(uuid())
-  deviceId  String
-  date      String
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  deviceId     String   @unique
+  lastUnlockAt DateTime @default(now())
 
-  @@unique([deviceId, date])
   @@map("unlock_logs")
 }

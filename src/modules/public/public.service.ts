@@ -5,13 +5,14 @@ import { getAudioPlaybackUrl } from "../storage/storage.service";
 import { isUnlockedToday } from "../unlock/unlock.service";
 import { AudioResponseDto, toAudioResponse } from "../audio/audio.mapper";
 import { getPeriodStartDate, RankingPeriod } from "../../utils/date";
+import {
+  getCurrentListenersMap,
+  heartbeatListening,
+} from "../audio/listenSession.service";
 
 export type PublicAudioSort = "newest" | "updated";
 export type RankingMetric = "listening" | "listened";
 
-// Danh sach audio public, ho tro tim kiem theo title + phan trang + sap xep.
-// Chi hien thi audio status=READY (audio dang xu ly/loi khong duoc hien cho USER).
-// Khong gan audioUrl trong parts o day - USER phai goi API stream (co check unlock) moi lay duoc.
 export async function listPublicAudios(params: {
   search?: string;
   page: number;
@@ -23,14 +24,11 @@ export async function listPublicAudios(params: {
   page: number;
   pageSize: number;
 }> {
-  // Luu y: MySQL (collation mac dinh utf8mb4_unicode_ci) da tim kiem KHONG phan biet hoa/thuong san,
-  // nen khong can truyen "mode: insensitive" nhu Postgres (Prisma khong ho tro option nay tren MySQL)
   const where = {
     status: AudioStatus.READY,
     ...(params.search ? { title: { contains: params.search } } : {}),
   };
 
-  // "newest": audio moi dang (createdAt) - "updated": audio moi CHINH SUA gan day nhat (updatedAt)
   const orderBy =
     params.sort === "updated"
       ? { updatedAt: "desc" as const }
@@ -46,8 +44,12 @@ export async function listPublicAudios(params: {
     prisma.audio.count({ where }),
   ]);
 
+  const listenersMap = await getCurrentListenersMap(audios.map((a) => a.id));
+
   return {
-    items: audios.map((audio) => toAudioResponse(audio)),
+    items: audios.map((audio) =>
+      toAudioResponse(audio, undefined, listenersMap.get(audio.id) ?? 0),
+    ),
     total,
     page: params.page,
     pageSize: params.pageSize,
@@ -58,14 +60,13 @@ export async function getPublicAudioDetail(
   audioId: string,
 ): Promise<AudioResponseDto> {
   const audio = await prisma.audio.findUnique({ where: { id: audioId } });
-  // Audio chua READY thi coi nhu chua ton tai voi USER
   if (!audio || audio.status !== AudioStatus.READY) {
     throw ApiError.notFound("Audio khong ton tai");
   }
-  return toAudioResponse(audio);
+  const listenersMap = await getCurrentListenersMap([audioId]);
+  return toAudioResponse(audio, undefined, listenersMap.get(audioId) ?? 0);
 }
 
-// Nguoi dung bam PHAT nhac -> yeu cau da unlock hom nay -> tra ve audio kem parts co audioUrl + tang totalListening
 export async function getStreamUrl(
   audioId: string,
   deviceId: string,
@@ -90,16 +91,15 @@ export async function getStreamUrl(
       where: { id: audioId },
       data: { totalListening: { increment: 1 } },
     }),
-    // Ghi log kem thoi diem - dung de tinh ranking theo hom nay/thang/nam sau nay
     prisma.listenEvent.create({
       data: { audioId, type: ListenEventType.START },
     }),
+    heartbeatListening(audioId, deviceId),
   ]);
 
-  return toAudioResponse(updated, playbackUrl);
+  return toAudioResponse(updated, playbackUrl, 1);
 }
 
-// Client goi khi audio da phat het (vd: su kien 'ended' cua the <audio>) -> tang totalListened
 export async function markAudioCompleted(audioId: string) {
   const audio = await prisma.audio.findUnique({ where: { id: audioId } });
   if (!audio) {
@@ -119,9 +119,6 @@ export async function markAudioCompleted(audioId: string) {
   return { id: updated.id, totalListened: updated.totalListened };
 }
 
-// Audio "dang nghe nhieu" (metric=listening, dua tren so lan BAM PHAT trong khoang thoi gian)
-// hoac "top luot nghe" (metric=listened, dua tren so lan NGHE HET bai trong khoang thoi gian).
-// period: today | month | year | all - "all" tuong duong xep hang theo toan bo lich su.
 export async function listRankedAudios(params: {
   metric: RankingMetric;
   period: RankingPeriod;

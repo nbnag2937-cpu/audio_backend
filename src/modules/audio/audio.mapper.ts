@@ -16,6 +16,7 @@ export interface AudioResponseDto {
   description: string | null;
   totalListened: number;
   totalListening: number;
+  currentListeners: number;
   createdAt: Date;
   status: AudioStatusDto;
   parts: AudioPartDto[];
@@ -65,9 +66,13 @@ export function buildAudioParts(params: {
   }));
 }
 
+// currentListeners: so nguoi DANG NGHE THUC SU (real-time, tinh tu ListenSession heartbeat).
+// Khac voi totalListening (lifetime, chi tang, KHONG dung de hien "dang nghe" nua).
+// Mac dinh 0 cho cac cho khong can/khong tinh gia tri nay (vd man thong ke cua super admin).
 export function toAudioResponse(
   audio: AudioRow,
   audioUrl?: string,
+  currentListeners: number = 0,
 ): AudioResponseDto {
   return {
     id: audio.id,
@@ -75,6 +80,7 @@ export function toAudioResponse(
     description: audio.description,
     totalListened: audio.totalListened,
     totalListening: audio.totalListening,
+    currentListeners,
     createdAt: audio.createdAt,
     status: mapAudioStatus(audio.status),
     adLinkUrl: audio.adLinkUrl ?? env.adLinkUrl,
@@ -91,6 +97,7 @@ export function toAudioResponseWithOwner(
   audio: AudioRow,
   owner: { id: string; name: string; email: string },
   audioUrl?: string,
+  currentListeners: number = 0,
 ): AudioResponseWithOwnerDto {
-  return { ...toAudioResponse(audio, audioUrl), owner };
+  return { ...toAudioResponse(audio, audioUrl, currentListeners), owner };
 }

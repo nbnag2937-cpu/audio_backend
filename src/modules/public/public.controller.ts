@@ -9,6 +9,10 @@ import {
   markAudioCompleted,
 } from "./public.service";
 import { listAudiosQuerySchema, rankingQuerySchema } from "./public.validation";
+import {
+  heartbeatListening,
+  stopListening,
+} from "../audio/listenSession.service";
 
 // GET /api/public/audios?search=&page=&pageSize=&sort=newest|updated
 export const listPublicAudiosHandler = asyncHandler(
@@ -52,6 +56,26 @@ export const completeAudioHandler = asyncHandler(
   async (req: Request, res: Response) => {
     const result = await markAudioCompleted(req.params.id);
     res.status(200).json({ success: true, data: result });
+  },
+);
+
+// POST /api/public/audios/:id/listen-heartbeat - body: { deviceId }
+// FE goi 1 lan khi bam play, roi lap lai dinh ky (~20s) trong luc audio dang phat,
+// de bao "van dang nghe" -> giu session khong bi coi la het han.
+export const heartbeatListenHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    await heartbeatListening(req.params.id, req.body.deviceId);
+    res.status(200).json({ success: true, data: { ok: true } });
+  },
+);
+
+// POST /api/public/audios/:id/listen-stop - body: { deviceId }
+// FE goi (best-effort) khi pause/dung/chuyen bai/roi trang, de xoa session ngay lap tuc
+// thay vi doi den khi het han heartbeat - khong bat buoc phai thanh cong.
+export const stopListenHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    await stopListening(req.params.id, req.body.deviceId);
+    res.status(200).json({ success: true, data: { ok: true } });
   },
 );
 

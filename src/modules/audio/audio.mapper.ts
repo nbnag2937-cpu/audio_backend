@@ -1,17 +1,15 @@
 import { AudioStatus } from "@prisma/client";
-
+import { env } from "../../config/env";
 export interface AudioPartDto {
   id: string;
   partNumber: number;
   title: string;
   durationSec: number;
-  // Chi co gia tri khi da duoc phep phat (owner xem chi tiet, hoac USER da mo khoa hom nay)
   audioUrl?: string;
 }
 
 export type AudioStatusDto = "processing" | "ready" | "failed";
 
-// Kieu du lieu tra ve cho FE, khop voi AudioItem/AudioPart o file service cua FE
 export interface AudioResponseDto {
   id: string;
   title: string;
@@ -21,6 +19,7 @@ export interface AudioResponseDto {
   createdAt: Date;
   status: AudioStatusDto;
   parts: AudioPartDto[];
+  adLinkUrl: string;
 }
 
 export interface AudioResponseWithOwnerDto extends AudioResponseDto {
@@ -36,14 +35,13 @@ interface AudioRow {
   createdAt: Date;
   durationSec: number;
   status: AudioStatus;
+  adLinkUrl: string | null;
 }
 
 export function mapAudioStatus(status: AudioStatus): AudioStatusDto {
   return status.toLowerCase() as AudioStatusDto;
 }
 
-// Chia doi thoi luong audio thanh 2 "part" de FE hien thi (KHONG phai 2 file rieng biet,
-// ca 2 part deu tro ve cung 1 audioUrl vi thuc chat chi co 1 file duy nhat tren R2)
 function splitDurationInHalf(totalDurationSec: number): [number, number] {
   const firstPartSec = Math.floor(totalDurationSec / 2);
   const secondPartSec = totalDurationSec - firstPartSec;
@@ -67,8 +65,6 @@ export function buildAudioParts(params: {
   }));
 }
 
-// Chuyen 1 row Audio (tu Prisma) sang dang tra ve cho FE (co "parts", "status" dang lowercase).
-// audioUrl chi duoc gan khi duoc phep xem file that (owner xem chi tiet, hoac da mo khoa).
 export function toAudioResponse(
   audio: AudioRow,
   audioUrl?: string,
@@ -81,6 +77,7 @@ export function toAudioResponse(
     totalListening: audio.totalListening,
     createdAt: audio.createdAt,
     status: mapAudioStatus(audio.status),
+    adLinkUrl: audio.adLinkUrl ?? env.adLinkUrl,
     parts: buildAudioParts({
       audioId: audio.id,
       title: audio.title,
@@ -90,7 +87,6 @@ export function toAudioResponse(
   };
 }
 
-// Giong toAudioResponse nhung kem thong tin chu so huu - dung cho man SUPER_ADMIN xem toan bo audio
 export function toAudioResponseWithOwner(
   audio: AudioRow,
   owner: { id: string; name: string; email: string },

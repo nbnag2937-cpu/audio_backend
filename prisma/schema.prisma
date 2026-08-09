@@ -16,20 +16,17 @@ enum Role {
   SUPER_ADMIN
 }
 
-// Trang thai xu ly file audio sau khi upload
 enum AudioStatus {
   PROCESSING
   READY
   FAILED
 }
 
-// Loai su kien nghe: START = bam phat (ung voi totalListening), COMPLETE = nghe het bai (ung voi totalListened)
 enum ListenEventType {
   START
   COMPLETE
 }
 
-// Tai khoan quan tri (ADMIN / SUPER_ADMIN). USER khong co tai khoan (nghe khong can login).
 model Account {
   id       String  @id @default(uuid())
   email    String  @unique
@@ -38,7 +35,6 @@ model Account {
   role     Role
   isActive Boolean @default(true)
 
-  // Neu la ADMIN, luu ai la nguoi cap tai khoan (SUPER_ADMIN nao da tao)
   createdById   String?
   createdBy     Account?  @relation("AccountCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAdmins Account[] @relation("AccountCreatedBy")
@@ -51,30 +47,23 @@ model Account {
   @@map("accounts")
 }
 
-// Audio do Admin/Super Admin quan ly.
-// Moi Audio chi co DUY NHAT 1 file that tren R2. "parts" (p1/p2) chi la cach FE
-// hien thi audio chia doi theo thoi luong (durationSec), khong phai 2 file rieng biet.
 model Audio {
   id          String  @id @default(uuid())
   title       String  @db.VarChar(255)
   description String? @db.Text
 
-  // Key cua file trong Cloudflare R2 bucket (vi du: audios/uuid.mp3)
   fileKey          String
-  // Ten file goc, dung de hien thi / debug
   originalFileName String?
   mimeType         String?
   fileSize         Int?
 
-  // Thoi luong that cua file (giay), tu doc tu file luc upload bang thu vien music-metadata
   durationSec Int         @default(0)
-  // PROCESSING: dang xu ly (doc duration/upload) - READY: san sang phat - FAILED: doc file loi
   status      AudioStatus @default(PROCESSING)
 
-  // So lan nguoi nghe BAM PHAT (bat dau nghe)
   totalListening Int @default(0)
-  // So lan nguoi nghe NGHE HET bai (hoan thanh)
   totalListened  Int @default(0)
+
+  adLinkUrl String? @db.VarChar(500)
 
   ownerId String
   owner   Account @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -88,9 +77,6 @@ model Audio {
   @@map("audios")
 }
 
-// Log tung luot nghe (START/COMPLETE) kem thoi diem chinh xac.
-// Dung de tinh "dang nghe nhieu" / "top luot nghe" theo tung khoang thoi gian (hom nay/thang/nam),
-// vi 2 cot dem don totalListening/totalListened tren Audio KHONG the loc duoc theo thoi gian.
 model ListenEvent {
   id        String          @id @default(uuid())
   audioId   String
@@ -103,11 +89,9 @@ model ListenEvent {
   @@map("listen_events")
 }
 
-// Log xac nhan "da bam quang cao mo khoa" theo tung thiet bi (deviceId) trong tung ngay
 model UnlockLog {
   id        String   @id @default(uuid())
   deviceId  String
-  // Luu dang chuoi "YYYY-MM-DD" (theo UTC) de de query & tao unique constraint theo ngay
   date      String
   createdAt DateTime @default(now())
 

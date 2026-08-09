@@ -33,8 +33,6 @@ export async function createAudio(params: {
   ownerId: string;
   file: Express.Multer.File;
 }): Promise<AudioResponseDto> {
-  // Doc thoi luong that cua file TRUOC khi upload len R2, tranh tao file mo coi
-  // neu sau nay quyet dinh reject file khong doc duoc duration
   const durationSec = await readAudioDurationSec({
     buffer: params.file.buffer,
     mimeType: params.file.mimetype,
@@ -50,13 +48,12 @@ export async function createAudio(params: {
     data: {
       title: params.input.title,
       description: params.input.description ?? null,
+      adLinkUrl: params.input.adLinkUrl ?? null,
       fileKey,
       originalFileName: params.file.originalname,
       mimeType: params.file.mimetype,
       fileSize: params.file.size,
       durationSec: durationSec ?? 0,
-      // Khong doc duoc duration -> danh dau FAILED de admin biet file co van de,
-      // van giu lai file/record de admin xem va quyet dinh xoa hay upload lai
       status: durationSec !== null ? AudioStatus.READY : AudioStatus.FAILED,
       ownerId: params.ownerId,
     },
@@ -83,6 +80,7 @@ export async function updateAudio(params: {
     data: {
       title: params.input.title ?? undefined,
       description: params.input.description ?? undefined,
+      adLinkUrl: params.input.adLinkUrl ?? undefined,
     },
   });
 

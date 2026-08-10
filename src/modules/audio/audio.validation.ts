@@ -9,7 +9,12 @@ const optionalAdLinkUrl = z
   .or(z.literal("").transform(() => undefined));
 
 export const createAudioSchema = z.object({
-  title: z.string().min(1, "title khong duoc de trong").max(255),
+  title: z
+    .string()
+    .trim()
+    .max(255)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   description: z.string().max(2000).optional(),
   adLinkUrl: optionalAdLinkUrl,
 });

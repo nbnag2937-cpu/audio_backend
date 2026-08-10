@@ -1,4 +1,4 @@
-import { AudioStatus, Role } from "@prisma/client";
+import { AudioStatus, Prisma, Role } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import {
@@ -15,7 +15,6 @@ interface RequesterContext {
   role: Role;
 }
 
-// SUPER_ADMIN duoc thao tac tren audio cua BAT KY admin nao, ADMIN chi duoc tren audio cua chinh minh
 function assertCanModify(
   audioOwnerId: string,
   requester: RequesterContext,
@@ -25,6 +24,62 @@ function assertCanModify(
     throw ApiError.forbidden(
       "Ban chi co the thao tac tren audio cua chinh minh",
     );
+  }
+}
+
+async function createAudioWithAutoTitle(params: {
+  input: CreateAudioInput;
+  ownerId: string;
+  fileMeta: {
+    fileKey: string;
+    originalFileName: string;
+    mimeType: string;
+    fileSize: number;
+    durationSec: number;
+    status: AudioStatus;
+  };
+}) {
+  const run = () =>
+    prisma.$transaction(
+      async (tx) => {
+        let title = params.input.title;
+
+        if (!title) {
+          const count = await tx.audio.count({
+            where: { ownerId: params.ownerId },
+          });
+          title = `Audio Không Quảng Cáo ${count + 1}`;
+        }
+
+        return tx.audio.create({
+          data: {
+            title,
+            description: params.input.description ?? null,
+            adLinkUrl: params.input.adLinkUrl ?? null,
+            fileKey: params.fileMeta.fileKey,
+            originalFileName: params.fileMeta.originalFileName,
+            mimeType: params.fileMeta.mimeType,
+            fileSize: params.fileMeta.fileSize,
+            durationSec: params.fileMeta.durationSec,
+            status: params.fileMeta.status,
+            ownerId: params.ownerId,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+  try {
+    return await run();
+  } catch (err) {
+    // Loi P2034: transaction conflict do Serializable isolation (2 request tao dong thoi)
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2034"
+    ) {
+      return run();
+    }
+    throw err;
   }
 }
 
@@ -44,18 +99,16 @@ export async function createAudio(params: {
     mimeType: params.file.mimetype,
   });
 
-  const audio = await prisma.audio.create({
-    data: {
-      title: params.input.title,
-      description: params.input.description ?? null,
-      adLinkUrl: params.input.adLinkUrl ?? null,
+  const audio = await createAudioWithAutoTitle({
+    input: params.input,
+    ownerId: params.ownerId,
+    fileMeta: {
       fileKey,
       originalFileName: params.file.originalname,
       mimeType: params.file.mimetype,
       fileSize: params.file.size,
       durationSec: durationSec ?? 0,
       status: durationSec !== null ? AudioStatus.READY : AudioStatus.FAILED,
-      ownerId: params.ownerId,
     },
   });
 
@@ -105,8 +158,6 @@ export async function deleteAudio(params: {
   return { id: params.audioId };
 }
 
-// Danh sach audio cua chinh 1 admin (dung cho trang quan ly cua ADMIN)
-// Khong gan audioUrl o day de tranh phai tao presigned URL cho ca danh sach (ton phi/thoi gian)
 export async function listMyAudios(
   ownerId: string,
 ): Promise<AudioResponseDto[]> {
@@ -117,7 +168,6 @@ export async function listMyAudios(
   return audios.map((audio) => toAudioResponse(audio));
 }
 
-// Xem chi tiet 1 audio cua chinh minh (hoac cua ai do, neu la SUPER_ADMIN) - co audioUrl de admin preview lai
 export async function getAudioDetailForOwner(
   audioId: string,
   requester: RequesterContext,

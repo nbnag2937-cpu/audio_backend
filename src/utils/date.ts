@@ -4,18 +4,28 @@ export function getTodayDateKey(): string {
 
 export type RankingPeriod = "today" | "month" | "year" | "all";
 
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 export function getPeriodStartDate(period: RankingPeriod): Date | undefined {
-  const now = new Date();
+  const nowVN = new Date(Date.now() + VN_OFFSET_MS);
 
   switch (period) {
-    case "today":
-      return new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    case "today": {
+      const startVN = Date.UTC(
+        nowVN.getUTCFullYear(),
+        nowVN.getUTCMonth(),
+        nowVN.getUTCDate(),
       );
-    case "month":
-      return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    case "year":
-      return new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+      return new Date(startVN - VN_OFFSET_MS);
+    }
+    case "month": {
+      const startVN = Date.UTC(nowVN.getUTCFullYear(), nowVN.getUTCMonth(), 1);
+      return new Date(startVN - VN_OFFSET_MS);
+    }
+    case "year": {
+      const startVN = Date.UTC(nowVN.getUTCFullYear(), 0, 1);
+      return new Date(startVN - VN_OFFSET_MS);
+    }
     case "all":
       return undefined;
   }

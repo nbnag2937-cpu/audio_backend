@@ -149,11 +149,16 @@ export async function listRankedAudios(params: {
   });
   const audioById = new Map(audios.map((audio) => [audio.id, audio]));
 
-  // Giu dung thu tu xep hang tu ket qua groupBy (audio bi xoa/khong READY se tu dong bi bo qua)
+  const readyAudioIds = audios.map((a) => a.id);
+  const listenersMap = await getCurrentListenersMap(readyAudioIds);
+
   return grouped
     .filter((g) => audioById.has(g.audioId))
     .map((g) => {
       const audio = audioById.get(g.audioId)!;
-      return { ...toAudioResponse(audio), listenCount: g._count.audioId };
+      return {
+        ...toAudioResponse(audio, undefined, listenersMap.get(audio.id) ?? 0),
+        listenCount: g._count.audioId,
+      };
     });
 }

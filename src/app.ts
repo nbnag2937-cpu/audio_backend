@@ -8,7 +8,11 @@ import audioRoutes from "./modules/audio/audio.routes";
 import superAdminRoutes from "./modules/superAdmin/superAdmin.routes";
 import publicRoutes from "./modules/public/public.routes";
 import unlockRoutes from "./modules/unlock/unlock.routes";
-import { errorMiddleware, notFoundMiddleware } from "./middlewares/error.middleware";
+import ogPreviewRoutes from "./modules/ogPreview/ogPreview.routes";
+import {
+  errorMiddleware,
+  notFoundMiddleware,
+} from "./middlewares/error.middleware";
 import { env } from "./config/env";
 
 export function createApp(): Express {
@@ -37,6 +41,9 @@ export function createApp(): Express {
 
   // Co che mo khoa nghe nhac bang quang cao trong ngay
   app.use("/api/unlock", unlockRoutes);
+
+  // Lay anh preview (og:image) tu link Shopee
+  app.use("/api/og-preview", ogPreviewRoutes);
 
   app.use(notFoundMiddleware);
   app.use(errorMiddleware);

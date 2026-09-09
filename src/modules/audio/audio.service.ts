@@ -45,10 +45,21 @@ async function createAudioWithAutoTitle(params: {
         let title = params.input.title;
 
         if (!title) {
-          const count = await tx.audio.count({
-            where: { ownerId: params.ownerId },
+          const audios = await tx.audio.findMany({
+            where: {
+              ownerId: params.ownerId,
+              title: { startsWith: "Audio Không Quảng Cáo " },
+            },
+            select: { title: true },
           });
-          title = `Audio Không Quảng Cáo ${count + 1}`;
+
+          const maxNum = audios.reduce((max, a) => {
+            const match = a.title.match(/Audio Không Quảng Cáo (\d+)$/);
+            const num = match ? parseInt(match[1], 10) : 0;
+            return Math.max(max, num);
+          }, 0);
+
+          title = `Audio Không Quảng Cáo ${maxNum + 1}`;
         }
 
         return tx.audio.create({

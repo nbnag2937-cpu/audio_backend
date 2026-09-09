@@ -110,7 +110,11 @@ export async function getSystemStats() {
     prisma.account.count({ where: { role: Role.ADMIN } }),
     prisma.audio.count(),
     prisma.audio.aggregate({
-      _sum: { totalListening: true, totalListened: true },
+      _sum: {
+        totalListening: true,
+        totalListened: true,
+        currentListeners: true,
+      },
     }),
   ]);
 
@@ -119,5 +123,6 @@ export async function getSystemStats() {
     totalAudios,
     totalListening: aggregate._sum.totalListening ?? 0,
     totalListened: aggregate._sum.totalListened ?? 0,
+    currentListeners: aggregate._sum.currentListeners ?? 0,
   };
 }
